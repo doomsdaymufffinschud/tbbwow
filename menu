@@ -1,4 +1,4 @@
--- MOBILE COMBAT V51 - THE BATTLE BRICKS (OPTIMIZED INSTANT SNAP + MOBILE SHIFT LOCK)
+ -- MOBILE COMBAT V51 - THE BATTLE BRICKS (OPTIMIZED & BYPASS MOBILE TOUCH)
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local VIM = game:GetService("VirtualInputManager")
@@ -7,7 +7,24 @@ local LP = Players.LocalPlayer
 
 local Offset_X = 30  
 
--- Reset UI tránh trùng lặp
+-- TỰ ĐỘNG XÓA BỎ GIAO DIỆN CẢM ỨNG GỐC CỦA MOBILE (TRÁNH XOAY MÀN HÌNH BỊ TÍNH LÀ CHẠM DÙNG CHIÊU)
+task.spawn(function()
+    local playerGui = LP:WaitForChild("PlayerGui")
+    -- Chờ và xóa TouchGui (Giao diện Joystick và nút nhảy mặc định của Roblox trên điện thoại)
+    local touchGui = playerGui:WaitForChild("TouchGui", 5)
+    if touchGui then
+        touchGui:Destroy()
+    end
+    -- Lắng nghe nếu game tự tạo lại thì xóa tiếp
+    playerGui.ChildAdded:Connect(function(child)
+        if child.Name == "TouchGui" then
+            task.wait()
+            child:Destroy()
+        end
+    end)
+end)
+
+-- Reset UI script cũ tránh trùng lặp
 local old = LP.PlayerGui:FindFirstChild("CombatV51")
 if old then old:Destroy() end
 
@@ -26,7 +43,7 @@ Instance.new("UICorner", Cross).CornerRadius = UDim.new(1, 0)
 
 local isFiring = false 
 
--- HỆ THỐNG NÚT BẤM GỐC (GIỮ NGUYÊN VỊ TRÍ VÀ FIX VULCAN)
+-- HỆ THỐNG NÚT BẤM CHIẾN ĐẤU GỐC
 local function CreateBtn(name, txt, pos, sz, color, action)
     local b = Instance.new("TextButton", Gui)
     b.Name = name; b.Text = txt; b.Position = pos; b.Size = sz
@@ -81,7 +98,7 @@ CreateBtn("G", "G", UDim2.new(1, -95, 1, -285), UDim2.new(0, 65, 0, 65), Color3.
 CreateBtn("JUMP", "JUMP", UDim2.new(1, -120, 1, -145), UDim2.new(0, 90, 0, 90), Color3.fromRGB(80, 80, 80), "JUMP")
 CreateBtn("FIRE", "FIRE", UDim2.new(1, -210, 1, -210), UDim2.new(0, 80, 0, 80), Color3.new(0.8, 0, 0), "FIRE")
 
--- JOYSTICK GỐC KHÔNG LỖI KHỰNG
+-- JOYSTICK ẢO MƯỢT MÀ
 local JoystickFrame = Instance.new("Frame", Gui)
 JoystickFrame.Name = "StableMobileControls"
 JoystickFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
@@ -132,12 +149,11 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
--- VÒNG LẶP CORE: DI CHUYỂN MƯỢT MÀ
+-- VÒNG LẶP ĐIỀU KHIỂN NHÂN VẬT
 RunService.RenderStepped:Connect(function()
     local cam = workspace.CurrentCamera
     local char = LP.Character
     
-    -- Joystick Move
     if char and char:FindFirstChild("Humanoid") and moveVector.Magnitude > 0 then
         local look = cam.CFrame.LookVector
         local right = cam.CFrame.RightVector
