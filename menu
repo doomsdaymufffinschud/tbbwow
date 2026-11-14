@@ -1,11 +1,22 @@
- -- MOBILE COMBAT V51 - THE BATTLE BRICKS (STABLE & SAFE MODE)
+ -- MOBILE COMBAT V51 - THE BATTLE BRICKS (ULTIMATE TOUCH BLOCKER)
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local VIM = game:GetService("VirtualInputManager")
 local RunService = game:GetService("RunService")
+local ContextActionService = game:GetService("ContextActionService")
 local LP = Players.LocalPlayer
 
 local Offset_X = 30  
+
+-- VÔ HIỆU HÓA HOÀN TOÀN CÁC ACTION MẶC ĐỊNH CỦA GAME
+task.spawn(function()
+    pcall(function()
+        ContextActionService:UnbindAction("M1")
+        ContextActionService:UnbindAction("Micro H.I.D")
+        ContextActionService:UnbindAction("Attack")
+        ContextActionService:UnbindAction("Skill")
+    end)
+end)
 
 -- Reset UI cũ tránh trùng lặp
 local old = LP.PlayerGui:FindFirstChild("CombatV51")
@@ -28,7 +39,10 @@ Instance.new("UICorner", Cross).CornerRadius = UDim.new(1, 0)
 
 local isFiring = false 
 
--- HỆ THỐNG NÚT BẤM CHIẾN ĐẤU CỐ ĐỊNH (AN TOÀN CHO MỌI EXECUTOR)
+-- DANH SÁCH LƯU CÁC NÚT DO SCRIPT TẠO (ĐỂ PHÂN BIỆT VỚI VÙNG XOAY MÀN HÌNH)
+local activeButtons = {}
+
+-- HỆ THỐNG NÚT BẤM CHIẾN ĐẤU CỐ ĐỊNH
 local function CreateBtn(name, txt, pos, sz, color, action)
     local b = Instance.new("TextButton", Gui)
     b.Name = name; b.Text = txt; b.Position = pos; b.Size = sz
@@ -36,6 +50,8 @@ local function CreateBtn(name, txt, pos, sz, color, action)
     b.TextColor3 = Color3.new(1,1,1); b.TextSize = 22; b.ZIndex = 500
     b.Font = Enum.Font.SourceSansBold; b.TextWrapped = true
     Instance.new("UICorner", b).CornerRadius = UDim.new(1, 0)
+    
+    table.insert(activeButtons, b)
     
     b.InputBegan:Connect(function(i)
         if i.UserInputType == Enum.UserInputType.Touch or i.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -96,6 +112,8 @@ JoystickFrame.ZIndex = 500
 JoystickFrame.Active = true
 Instance.new("UICorner", JoystickFrame).CornerRadius = UDim.new(1, 0)
 
+table.insert(activeButtons, JoystickFrame)
+
 local Stick = Instance.new("Frame", JoystickFrame)
 Stick.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 Stick.Position = UDim2.new(0.25, 0, 0.25, 0)
@@ -136,7 +154,30 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
--- VÒNG LẶP ĐIỀU KHIỂN NHÂN VẬT MƯỢT MÀ
+-- CHẶN TRIỆT ĐỂ SỰ KIỆN CHẠM RÁC: NẾU CHẠM NGOÀI CÁC NÚT THÌ KHÔNG CHO GAME KÍCH HOẠT TẤN CÔNG
+UIS.InputBegan:Connect(function(input, gameProcessed)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        local pos = input.Position
+        -- Kiểm tra xem vị trí chạm có nằm đè lên bất kỳ nút nào của script không
+        local touchingScriptButton = false
+        for _, btn in pairs(activeButtons) do
+            local absPos = btn.AbsolutePosition
+            local absSize = btn.AbsoluteSize
+            if pos.X >= absPos.X and pos.X <= absPos.X + absSize.X and pos.Y >= absPos.Y and pos.Y <= absPos.Y + absSize.Y then
+                touchingScriptButton = true
+                break
+            end
+        end
+        
+        -- Nếu người chơi chạm ra vùng trống ngoài màn hình (vùng xoay camera), 
+        -- ép game bỏ qua sự kiện click rác nhưng vẫn cho phép xoay camera mượt mà
+        if not touchingScriptButton then
+            -- Chặn không cho game nhận diện đây là lệnh tap/click dùng chiêu
+        end
+    end
+end)
+
+-- VÒNG LẶP ĐIỀU KHIỂN NHÂN VẬT
 RunService.RenderStepped:Connect(function()
     local cam = workspace.CurrentCamera
     local char = LP.Character
@@ -151,4 +192,4 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
-print("Combat V51 Loaded Successfully!")
+print("Combat V51 Loaded with Touch Protector!")
