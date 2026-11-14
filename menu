@@ -1,497 +1,149 @@
-local CoreGui = game:GetService("CoreGui")
+-- MOBILE COMBAT V51 - THE BATTLE BRICKS (OPTIMIZED INSTANT SNAP + MOBILE SHIFT LOCK)
 local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local VIM = game:GetService("VirtualInputManager")
 local RunService = game:GetService("RunService")
-local LocalPlayer = Players.LocalPlayer
+local LP = Players.LocalPlayer
 
-if CoreGui:FindFirstChild("ReworkAbilityMenu") then
-    CoreGui.ReworkAbilityMenu:Destroy()
-end
+local Offset_X = 30  
 
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "ReworkAbilityMenu"
-ScreenGui.Parent = CoreGui
+-- Reset UI tránh trùng lặp
+local old = LP.PlayerGui:FindFirstChild("CombatV51")
+if old then old:Destroy() end
 
-local ToggleMenuBtn = Instance.new("TextButton")
-ToggleMenuBtn.Name = "ToggleMenuBtn"
-ToggleMenuBtn.Size = UDim2.new(0, 45, 0, 45)
-ToggleMenuBtn.Position = UDim2.new(0, 20, 0.5, -22)
-ToggleMenuBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-ToggleMenuBtn.Text = "Logo"
-ToggleMenuBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleMenuBtn.TextSize, ToggleMenuBtn.Font = 12, Enum.Font.GothamBold
-ToggleMenuBtn.Draggable = true
-ToggleMenuBtn.Active = true
-ToggleMenuBtn.Parent = ScreenGui
+local Gui = Instance.new("ScreenGui", LP.PlayerGui)
+Gui.Name = "CombatV51"
+Gui.ResetOnSpawn = false
 
-local LogoCorner = Instance.new("UICorner")
-LogoCorner.CornerRadius = UDim.new(1, 0)
-LogoCorner.Parent = ToggleMenuBtn
+-- TÂM ĐỎ ĐỊNH VỊ
+local Cross = Instance.new("Frame", Gui)
+Cross.Size = UDim2.new(0, 6, 0, 6)
+Cross.Position = UDim2.new(0.5, -3 + Offset_X, 0.5, -3)
+Cross.BackgroundColor3 = Color3.new(1, 0, 0)
+Cross.BorderSizePixel = 0
+Cross.ZIndex = 1000
+Instance.new("UICorner", Cross).CornerRadius = UDim.new(1, 0)
 
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 180, 0, 40)
-MainFrame.Position = UDim2.new(0, 75, 0.5, -20)
-MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-MainFrame.Visible = true
-MainFrame.Parent = ScreenGui
+local isFiring = false 
 
-local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 10)
-MainCorner.Parent = MainFrame
-
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 1, 0)
-Title.BackgroundTransparency = 1
-Title.Text = "Rework Ability"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 14
-Title.Font = Enum.Font.GothamBold
-Title.Parent = MainFrame
-
-local menuVisible = true
-ToggleMenuBtn.MouseButton1Click:Connect(function()
-    menuVisible = not menuVisible
-    MainFrame.Visible = menuVisible
-    ToggleMenuBtn.BackgroundColor3 = menuVisible and Color3.fromRGB(40, 40, 40) or Color3.fromRGB(80, 40, 40)
-end)
-
-local JoystickBase = Instance.new("Frame")
-JoystickBase.Name = "JoystickBase"
-JoystickBase.Size = UDim2.new(0, 120, 0, 120)
-JoystickBase.Position = UDim2.new(0.08, 0, 0.55, 0)
-JoystickBase.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-JoystickBase.BackgroundTransparency = 0.3
-JoystickBase.Visible = false
-JoystickBase.Parent = ScreenGui
-
-local BaseCorner = Instance.new("UICorner")
-BaseCorner.CornerRadius = UDim.new(1, 0)
-BaseCorner.Parent = JoystickBase
-
-local JoystickThumb = Instance.new("Frame")
-JoystickThumb.Name = "Thumb"
-JoystickThumb.Size = UDim2.new(0, 45, 0, 45)
-JoystickThumb.Position = UDim2.new(0.5, -22.5, 0.5, -22.5)
-JoystickThumb.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-JoystickThumb.BackgroundTransparency = 0.2
-JoystickThumb.Parent = JoystickBase
-
-local ThumbCorner = Instance.new("UICorner")
-ThumbCorner.CornerRadius = UDim.new(1, 0)
-ThumbCorner.Parent = JoystickThumb
-
-local isDragging = false
-local moveDirectionVector = Vector2.zero
-
-local function stopJoystickMovement()
-    isDragging = false
-    moveDirectionVector = Vector2.zero
-    JoystickThumb.Position = UDim2.new(0.5, -22.5, 0.5, -22.5)
+-- HỆ THỐNG NÚT BẤM GỐC (GIỮ NGUYÊN VỊ TRÍ VÀ FIX VULCAN)
+local function CreateBtn(name, txt, pos, sz, color, action)
+    local b = Instance.new("TextButton", Gui)
+    b.Name = name; b.Text = txt; b.Position = pos; b.Size = sz
+    b.BackgroundColor3 = color; b.BackgroundTransparency = 0.4
+    b.TextColor3 = Color3.new(1,1,1); b.TextSize = 22; b.ZIndex = 500
+    b.Font = Enum.Font.SourceSansBold; b.TextWrapped = true
+    Instance.new("UICorner", b).CornerRadius = UDim.new(1, 0)
     
-    if LocalPlayer.Character then
-        local rootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if rootPart then
-            rootPart.AssemblyLinearVelocity = Vector3.new(0, rootPart.AssemblyLinearVelocity.Y, 0)
-        end
-    end
-end
-
-local function updateJoystick(input)
-    if not JoystickBase.Visible then return end
-    if workspace.CurrentCamera and input.Position.X > workspace.CurrentCamera.ViewportSize.X / 2 then return end
-
-    isDragging = true
-    local center = JoystickBase.AbsolutePosition + (JoystickBase.AbsoluteSize / 2)
-    local inputPos = Vector2.new(input.Position.X, input.Position.Y)
-    local delta = inputPos - center
-    local radius = JoystickBase.AbsoluteSize.X / 2
-    local clampedDelta = delta.Magnitude > radius and (delta.Unit * radius) or delta
-    
-    JoystickThumb.Position = UDim2.new(0.5, clampedDelta.X - 22.5, 0.5, clampedDelta.Y - 22.5)
-    moveDirectionVector = Vector2.new(clampedDelta.X / radius, clampedDelta.Y / radius)
-end
-
-game:GetService("UserInputService").InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        updateJoystick(input)
-    end
-end)
-
-game:GetService("UserInputService").InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        if JoystickBase.Visible then
-            updateJoystick(input)
-        end
-    end
-end)
-
-game:GetService("UserInputService").InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        stopJoystickMovement()
-    end
-end)
-
-RunService.RenderStepped:Connect(function()
-    if JoystickBase.Visible and isDragging and moveDirectionVector.Magnitude > 0.05 and LocalPlayer.Character then
-        local rootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if rootPart then
-            local speed = 16
-            local forward = rootPart.CFrame.LookVector
-            local right = rootPart.CFrame.RightVector
-            
-            local flatForward = Vector3.new(forward.X, 0, forward.Z).Unit
-            local flatRight = Vector3.new(right.X, 0, right.Z).Unit
-            
-            local moveVel = (flatForward * (-moveDirectionVector.Y) + flatRight * moveDirectionVector.X) * speed
-            rootPart.AssemblyLinearVelocity = Vector3.new(moveVel.X, rootPart.AssemblyLinearVelocity.Y, moveVel.Z)
-        end
-    end
-end)
-
-local isSwinging = false
-local isTeapotThrowing = false
-local phase2Triggered = false
-local phase3Triggered = false
-local isChangingPhase = false
-
-local SWING_ANIM_ID = "99881191150215"
-local TEAPOT_ANIM_ID = "126991906303498"
-local PHASE2_ANIM_ID = "117666725557838"
-
--- Phase 3 IDs
-local PHASE3_TRANS_ID = "110754291756171"
-local LOW_HP_IDLE_ID = "81998275496859"
-local LOW_HP_WALK_RUN_ID = "18978131428"
-
-local function playCustomAnimation(animator, targetId, speedMultiplier)
-    local anim = Instance.new("Animation")
-    anim.AnimationId = "rbxassetid://" .. targetId
-    local track = animator:LoadAnimation(anim)
-    track:Play()
-    track:AdjustSpeed(speedMultiplier or 1.0)
-    return track
-end
-
-local function createHarmlessExplosion(character)
-    local head = character:FindFirstChild("Head")
-    if not head then return end
-
-    local part = Instance.new("Part")
-    part.Size = Vector3.new(0.5, 0.5, 0.5)
-    part.CFrame = head.CFrame
-    part.Transparency = 1
-    part.Anchored = true
-    part.CanCollide = false
-    part.Parent = workspace
-
-    local emitter = Instance.new("ParticleEmitter")
-    emitter.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(200, 220, 255))
-    emitter.Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(1, 2.5)})
-    emitter.Texture = "rbxassetid://1084991215"
-    emitter.Lifetime = NumberRange.new(0.3, 0.6)
-    emitter.Rate = 100
-    emitter.Speed = NumberRange.new(10, 20)
-    emitter.SpreadAngle = Vector2.new(180, 180)
-    emitter.Parent = part
-
-    emitter:Emit(30)
-
-    task.delay(1.0, function()
-        part:Destroy()
-    end)
-end
-
-local function removeHalo(character)
-    local halo = character:FindFirstChild("AngelHaloVisual")
-    if halo then
-        createHarmlessExplosion(character)
-        halo:Destroy()
-    end
-end
-
--- Ép thay thế hoàn toàn hệ thống animation đứng và chạy ở mốc <= 20% máu
-local function applyLowHpAnimations(character)
-    removeHalo(character)
-    local animateScript = character:FindFirstChild("Animate")
-    if animateScript then
-        animateScript.Disabled = true -- Tắt script animate mặc định để tránh tranh chấp
-    end
-
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if not humanoid then return end
-    local animator = humanoid:FindFirstChildOfClass("Animator")
-    if not animator then return end
-
-    -- Load trực tiếp hoạt ảnh Idle và Walk/Run với tốc độ 2.5
-    local idleAnim = Instance.new("Animation")
-    idleAnim.AnimationId = "rbxassetid://" .. LOW_HP_IDLE_ID
-    local idleTrack = animator:LoadAnimation(idleAnim)
-    idleTrack.Priority = Enum.AnimationPriority.Core
-    idleTrack:AdjustSpeed(2.5)
-
-    local moveAnim = Instance.new("Animation")
-    moveAnim.AnimationId = "rbxassetid://" .. LOW_HP_WALK_RUN_ID
-    local moveTrack = animator:LoadAnimation(moveAnim)
-    moveTrack.Priority = Enum.AnimationPriority.Movement
-    moveTrack:AdjustSpeed(2.5)
-
-    -- Theo dõi trạng thái di chuyển để bật/tắt chuẩn xác
-    task.spawn(function()
-        while character and character.Parent and humanoid.Health / humanoid.MaxHealth <= 0.2 do
-            if humanoid.MoveDirection.Magnitude > 0.05 then
-                if not moveTrack.IsPlaying then
-                    if idleTrack.IsPlaying then idleTrack:Stop(0.1) end
-                    moveTrack:Play(0.1)
-                end
-            else
-                if not idleTrack.IsPlaying then
-                    if moveTrack.IsPlaying then moveTrack:Stop(0.1) end
-                    idleTrack:Play(0.1)
-                end
-            end
-            task.wait(0.1)
-        end
-        -- Dọn dẹp nếu hồi máu hoặc chết
-        if idleTrack.IsPlaying then idleTrack:Stop() end
-        if moveTrack.IsPlaying then moveTrack:Stop() end
-    end)
-end
-
-local function setupAnimationListener(character)
-    local humanoid = character:WaitForChild("Humanoid", 5)
-    if not humanoid then return end
-    local animator = humanoid:WaitForChild("Animator", 5)
-    if not animator then return end
-
-    humanoid.HealthChanged:Connect(function(health)
-        local maxHealth = humanoid.MaxHealth
-        local hpPercent = health / maxHealth
-
-        -- Khôi phục trọn vẹn Phase 2 (<= 50% máu)
-        if not phase2Triggered and hpPercent <= 0.5 and hpPercent > 0.2 then
-            phase2Triggered = true
-            isChangingPhase = true
-            
-            local phaseTrack = playCustomAnimation(animator, PHASE2_ANIM_ID, 1.5)
-            phaseTrack.Stopped:Connect(function()
-                isChangingPhase = false
-            end)
-            
-        elseif not phase3Triggered and hpPercent <= 0.2 then
-            phase3Triggered = true
-            isChangingPhase = true
-            
-            -- Chạy hoạt ảnh chuyển dạng Phase 3 với tốc độ 2.5
-            local phaseTrack = playCustomAnimation(animator, PHASE3_TRANS_ID, 2.5)
-            phaseTrack.Stopped:Connect(function()
-                isChangingPhase = false
-                applyLowHpAnimations(character) -- Kích hoạt đứng/chạy mới sau khi chuyển dạng xong
-            end)
-        end
-    end)
-
-    animator.AnimationPlayed:Connect(function(track)
-        if isChangingPhase then return end
-
-        local anim = track.Animation
-        if anim then
-            local currentId = anim.AnimationId
-            local hpPercent = (humanoid.Health / humanoid.MaxHealth)
-            local isLowHp = hpPercent <= 0.2
-
-            if isLowHp and string.find(currentId, SWING_ANIM_ID) then
-                if not isSwinging then
-                    isSwinging = true
-
-                    local RootPart = character:FindFirstChild("HumanoidRootPart")
-                    if RootPart then
-                        -- Đợi đúng 5 giây khi animation mốc 20% máu kích hoạt rồi mới đẩy lùi
-                        task.delay(5.0, function()
-                            if not RootPart or not RootPart.Parent then isSwinging = false return end
-
-                            local pushBack = Instance.new("LinearVelocity")
-                            local attPush = Instance.new("Attachment", RootPart)
-                            pushBack.Attachment0 = attPush
-                            pushBack.MaxForce = 999999
-                            pushBack.VectorVelocity = -RootPart.CFrame.LookVector * 40 + Vector3.new(0, 10, 0)
-                            pushBack.Parent = RootPart
-                            
-                            task.wait(0.2)
-                            if pushBack then pushBack:Destroy() end
-                            if attPush then attPush:Destroy() end
-
-                            isSwinging = false
-                        end)
-                    else
-                        isSwinging = false
+    b.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.Touch or i.UserInputType == Enum.UserInputType.MouseButton1 then
+            b.BackgroundTransparency = 0.1
+            if action == "FIRE" then 
+                isFiring = true
+                task.spawn(function()
+                    while isFiring do
+                        local cam = workspace.CurrentCamera
+                        local centerX = cam.ViewportSize.X / 2 + Offset_X
+                        local centerY = cam.ViewportSize.Y / 2
+                        VIM:SendMouseButtonEvent(centerX, centerY, 0, true, game, 1)
+                        task.wait(0.05)
                     end
-                end
-
-            elseif not isLowHp and string.find(currentId, SWING_ANIM_ID) then
-                if not isSwinging then
-                    isSwinging = true
-                    playCustomAnimation(animator, SWING_ANIM_ID, 1.0)
-                    JoystickBase.Visible = true
-                    
-                    task.delay(4, function()
-                        JoystickBase.Visible = false
-                        stopJoystickMovement()
-
-                        local RootPart = character:FindFirstChild("HumanoidRootPart")
-                        if RootPart then
-                            local pushBack = Instance.new("LinearVelocity")
-                            local att = Instance.new("Attachment", RootPart)
-                            pushBack.Attachment0 = att
-                            pushBack.MaxForce = 999999
-                            pushBack.VectorVelocity = -RootPart.CFrame.LookVector * 40 + Vector3.new(0, 10, 0)
-                            pushBack.Parent = RootPart
-                            
-                            task.wait(0.2)
-                            if pushBack then pushBack:Destroy() end
-                            if att then att:Destroy() end
-                        end
-                        isSwinging = false
-                    end)
-                end
-
-            elseif string.find(currentId, TEAPOT_ANIM_ID) then
-                if isTeapotThrowing then return end
-                isTeapotThrowing = true
-
-                local RootPart = character:FindFirstChild("HumanoidRootPart")
-                if not RootPart then isTeapotThrowing = false return end
-
-                local pushBack = Instance.new("LinearVelocity")
-                local attachment = Instance.new("Attachment", RootPart)
-                pushBack.Attachment0 = attachment
-                pushBack.MaxForce = 999999
-                pushBack.VectorVelocity = Vector3.new(-RootPart.CFrame.LookVector.X * 45, 0, -RootPart.CFrame.LookVector.Z * 45)
-                pushBack.Parent = RootPart
-                
-                task.wait(0.2)
-                if pushBack then pushBack:Destroy() end
-                if attachment then attachment:Destroy() end
-
-                track.Stopped:Connect(function()
-                    local tpVelocity = Instance.new("LinearVelocity")
-                    local tpAttachment = Instance.new("Attachment", RootPart)
-                    tpVelocity.Attachment0 = tpAttachment
-                    tpVelocity.MaxForce = 50000
-                    tpVelocity.Parent = RootPart
-
-                    local runConn
-                    local elapsedTime = 0
-                    local duration = 4.5
-
-                    runConn = RunService.RenderStepped:Connect(function(dt)
-                        elapsedTime = elapsedTime + dt
-                        if elapsedTime <= duration then
-                            if character and RootPart and humanoid and humanoid.MoveDirection.Magnitude > 0 then
-                                local moveDir = humanoid.MoveDirection
-                                tpVelocity.VectorVelocity = Vector3.new(moveDir.X * 12, tpVelocity.VectorVelocity.Y, moveDir.Z * 12)
-                            else
-                                tpVelocity.VectorVelocity = Vector3.new(0, 0, 0)
-                            end
-                        else
-                            if runConn then runConn:Disconnect() end
-                            if tpVelocity then tpVelocity:Destroy() end
-                            if tpAttachment then tpAttachment:Destroy() end
-                            isTeapotThrowing = false
-                        end
-                    end)
                 end)
+            elseif action == "JUMP" then
+                VIM:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+            else
+                VIM:SendKeyEvent(true, action, false, game)
             end
         end
     end)
-end
-
-if LocalPlayer.Character then
-    setupAnimationListener(LocalPlayer.Character)
-end
-LocalPlayer.CharacterAdded:Connect(setupAnimationListener)
-
-local function applyHaloToModel(model)
-    if not model:IsA("Model") then return end
     
-    local function checkAndApply()
-        local head = model:FindFirstChild("Head")
-        if not head then return end
-        
-        local humanoid = model:FindFirstChildOfClass("Humanoid")
-        if humanoid and (humanoid.Health / humanoid.MaxHealth) <= 0.2 then
-            return
-        end
-        
-        local isTargetUnit = false
-        
-        for _, obj in ipairs(model:GetDescendants()) do
-            if obj:IsA("IntValue") or obj:IsA("NumberValue") or obj:IsA("StringValue") then
-                if tonumber(obj.Value) == 11 then
-                    isTargetUnit = true
-                    break
-                end
-            elseif obj:IsA("Folder") or obj:IsA("Configuration") then
-                for _, attrVal in pairs(obj:GetAttributes()) do
-                    if tonumber(attrVal) == 11 then
-                        isTargetUnit = true
-                        break
-                    end
-                end
+    b.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.Touch or i.UserInputType == Enum.UserInputType.MouseButton1 then
+            b.BackgroundTransparency = 0.4
+            if action == "FIRE" then 
+                isFiring = false
+                local cam = workspace.CurrentCamera
+                local centerX = cam.ViewportSize.X / 2 + Offset_X
+                local centerY = cam.ViewportSize.Y / 2
+                VIM:SendMouseButtonEvent(centerX, centerY, 0, false, game, 1)
+            elseif action == "JUMP" then
+                VIM:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
+            else
+                VIM:SendKeyEvent(false, action, false, game)
             end
         end
-        
-        if not isTargetUnit then
-            for _, attrVal in pairs(model:GetAttributes()) do
-                if tonumber(attrVal) == 11 then
-                    isTargetUnit = true
-                    break
-                end
-            end
-        end
-
-        if isTargetUnit then
-            if not model:FindFirstChild("AngelHaloVisual") then
-                local haloPart = Instance.new("Part")
-                haloPart.Name = "AngelHaloVisual"
-                haloPart.Size = Vector3.new(1.366, 0.202, 1.35)
-                haloPart.Material = Enum.Material.Neon
-                haloPart.Color = Color3.fromRGB(255, 255, 255)
-                haloPart.Anchored = false
-                haloPart.CanCollide = false
-                haloPart.Massless = true
-
-                local mesh = Instance.new("SpecialMesh")
-                mesh.MeshType = Enum.MeshType.FileMesh
-                mesh.MeshId = "rbxassetid://9285228633"
-                mesh.Scale = Vector3.new(1, 1, 1)
-                mesh.Parent = haloPart
-
-                haloPart.CFrame = head.CFrame * CFrame.new(0, 1.2, 0) * CFrame.Angles(math.rad(180), math.rad(68.768), math.rad(180))
-                haloPart.Parent = model
-
-                local weld = Instance.new("WeldConstraint")
-                weld.Part0 = head
-                weld.Part1 = haloPart
-                weld.Parent = haloPart
-            end
-        end
-    end
-
-    checkAndApply()
-    model.DescendantAdded:Connect(function()
-        task.wait(0.1)
-        checkAndApply()
     end)
 end
 
-for _, obj in ipairs(workspace:GetDescendants()) do
-    if obj:IsA("Model") then
-        applyHaloToModel(obj)
-    end
-end
+CreateBtn("Q", "Q", UDim2.new(1, -95, 1, -210), UDim2.new(0, 65, 0, 65), Color3.fromRGB(255, 150, 0), Enum.KeyCode.Q)
+CreateBtn("E", "E", UDim2.new(1, -180, 1, -120), UDim2.new(0, 65, 0, 65), Color3.fromRGB(0, 120, 255), Enum.KeyCode.E)
+CreateBtn("G", "G", UDim2.new(1, -95, 1, -285), UDim2.new(0, 65, 0, 65), Color3.fromRGB(0, 200, 100), Enum.KeyCode.G) 
+CreateBtn("JUMP", "JUMP", UDim2.new(1, -120, 1, -145), UDim2.new(0, 90, 0, 90), Color3.fromRGB(80, 80, 80), "JUMP")
+CreateBtn("FIRE", "FIRE", UDim2.new(1, -210, 1, -210), UDim2.new(0, 80, 0, 80), Color3.new(0.8, 0, 0), "FIRE")
 
-workspace.DescendantAdded:Connect(function(descendant)
-    if descendant:IsA("Model") then
-        task.wait(0.2)
-        applyHaloToModel(descendant)
+-- JOYSTICK GỐC KHÔNG LỖI KHỰNG
+local JoystickFrame = Instance.new("Frame", Gui)
+JoystickFrame.Name = "StableMobileControls"
+JoystickFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+JoystickFrame.BackgroundTransparency = 0.7
+JoystickFrame.Position = UDim2.new(0, 60, 1, -220)
+JoystickFrame.Size = UDim2.new(0, 150, 0, 150)
+JoystickFrame.ZIndex = 500
+JoystickFrame.Active = true
+Instance.new("UICorner", JoystickFrame).CornerRadius = UDim.new(1, 0)
+
+local Stick = Instance.new("Frame", JoystickFrame)
+Stick.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+Stick.Position = UDim2.new(0.25, 0, 0.25, 0)
+Stick.Size = UDim2.new(0.5, 0, 0.5, 0)
+Stick.ZIndex = 510
+Instance.new("UICorner", Stick).CornerRadius = UDim.new(1, 0)
+
+local moveVector = Vector3.new(0, 0, 0)
+local activeTouch = nil
+
+JoystickFrame.InputBegan:Connect(function(input)
+    if (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1) and not activeTouch then
+        activeTouch = input
+    end
+end)
+
+UIS.InputChanged:Connect(function(input)
+    if input == activeTouch then
+        local center = JoystickFrame.AbsolutePosition + (JoystickFrame.AbsoluteSize / 2)
+        local inputPos = Vector2.new(input.Position.X, input.Position.Y)
+        local diff = inputPos - center
+        local dist = math.min(diff.Magnitude, 75)
+        local angle = math.atan2(diff.Y, diff.X)
+        
+        Stick.Position = UDim2.new(0, (math.cos(angle) * dist) + (JoystickFrame.AbsoluteSize.X/4), 0, (math.sin(angle) * dist) + (JoystickFrame.AbsoluteSize.Y/4))
+        
+        local dirX = math.cos(angle) * (dist/75)
+        local dirY = math.sin(angle) * (dist/75)
+        moveVector = Vector3.new(dirX, 0, dirY)
+    end
+end)
+
+UIS.InputEnded:Connect(function(input)
+    if input == activeTouch then
+        activeTouch = nil
+        Stick.Position = UDim2.new(0.25, 0, 0.25, 0)
+        moveVector = Vector3.new(0, 0, 0)
+    end
+end)
+
+-- VÒNG LẶP CORE: DI CHUYỂN MƯỢT MÀ
+RunService.RenderStepped:Connect(function()
+    local cam = workspace.CurrentCamera
+    local char = LP.Character
+    
+    -- Joystick Move
+    if char and char:FindFirstChild("Humanoid") and moveVector.Magnitude > 0 then
+        local look = cam.CFrame.LookVector
+        local right = cam.CFrame.RightVector
+        look = Vector3.new(look.X, 0, look.Z).Unit
+        right = Vector3.new(right.X, 0, right.Z).Unit
+        local finalDir = (look * -moveVector.Z) + (right * moveVector.X)
+        char.Humanoid:Move(finalDir, false)
     end
 end)
