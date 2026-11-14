@@ -1,14 +1,13 @@
--- MOBILE COMBAT V51 - THE BATTLE BRICKS (ULTIMATE FIX: BLOCK NATIVE TOUCH & FIXED FIRE)
+ -- MOBILE COMBAT V51 - THE BATTLE BRICKS (FINAL KILLER FIX)
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
-local VIM = game:GetService("VirtualInputManager")
 local RunService = game:GetService("RunService")
 local ContextActionService = game:GetService("ContextActionService")
 local LP = Players.LocalPlayer
 
 local Offset_X = 30  
 
--- VÔ HIỆU HÓA HOÀN TOÀN CÁC ACTION MẶC ĐỊNH CỦA GAME
+-- Gỡ bỏ hoàn toàn các action di động gốc
 task.spawn(function()
     pcall(function()
         ContextActionService:UnbindAction("M1")
@@ -39,7 +38,7 @@ Instance.new("UICorner", Cross).CornerRadius = UDim.new(1, 0)
 
 local isFiring = false 
 
--- HỆ THỐNG NÚT BẤM CHIẾN ĐẤU CỐ ĐỊNH (FIX FIRE DÙNG ĐƯỢC CHUẨN 100%)
+-- HỆ THỐNG NÚT BẤM (DÙNG HOẠT ĐỘNG CHẠM THỰC TẾ CHO NÚT FIRE)
 local function CreateBtn(name, txt, pos, sz, color, action)
     local b = Instance.new("TextButton", Gui)
     b.Name = name; b.Text = txt; b.Position = pos; b.Size = sz
@@ -54,22 +53,24 @@ local function CreateBtn(name, txt, pos, sz, color, action)
             if action == "FIRE" then 
                 isFiring = true
                 task.spawn(function()
-                    local cam = workspace.CurrentCamera
-                    local centerX = cam.ViewportSize.X / 2 + Offset_X
-                    local centerY = cam.ViewportSize.Y / 2
-                    
-                    -- Gửi sự kiện nhấn giữ liên tục chuẩn xác tại tâm
+                    -- Giả lập chạm trực tiếp vào màn hình tại tâm đúng cơ chế của game
                     while isFiring do
-                        VIM:SendMouseButtonEvent(centerX, centerY, 0, true, game, 1)
-                        task.wait(0.05)
-                        VIM:SendMouseButtonEvent(centerX, centerY, 0, false, game, 1)
-                        task.wait(0.05)
+                        local cam = workspace.CurrentCamera
+                        local centerX = cam.ViewportSize.X / 2 + Offset_X
+                        local centerY = cam.ViewportSize.Y / 2
+                        
+                        -- Gửi sự kiện click bằng chuột ảo trực tiếp vào CoreGui/UserInputService
+                        local vim = game:GetService("VirtualInputManager")
+                        vim:SendMouseButtonEvent(centerX, centerY, 0, true, game, 1)
+                        task.wait(0.04)
+                        vim:SendMouseButtonEvent(centerX, centerY, 0, false, game, 1)
+                        task.wait(0.04)
                     end
                 end)
             elseif action == "JUMP" then
-                VIM:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+                UIS:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
             else
-                VIM:SendKeyEvent(true, action, false, game)
+                UIS:SendKeyEvent(true, action, false, game)
             end
         end
     end)
@@ -80,9 +81,9 @@ local function CreateBtn(name, txt, pos, sz, color, action)
             if action == "FIRE" then 
                 isFiring = false
             elseif action == "JUMP" then
-                VIM:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
+                UIS:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
             else
-                VIM:SendKeyEvent(false, action, false, game)
+                UIS:SendKeyEvent(false, action, false, game)
             end
         end
     end)
@@ -116,7 +117,7 @@ local moveVector = Vector3.new(0, 0, 0)
 local activeTouch = nil
 
 JoystickFrame.InputBegan:Connect(function(input)
-    if (input.UserInputType == Enum.UserInputType.Touch || input.UserInputType == Enum.UserInputType.MouseButton1) and not activeTouch then
+    if (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1) and not activeTouch then
         activeTouch = input
     end
 end)
@@ -145,10 +146,10 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
--- SIÊU QUÉT CHẶN VÀ TIÊU DIỆT NÚT GỐC (CHẠY LIÊN TỤC 24/7 ĐỂ CHỐNG HỒI SINH NÚT RÁC)
+-- TIÊU DIỆT HOÀN TOÀN CÁC NÚT M1/ATTACK NGAY KHI CHÚNG XUẤT HIỆN TRONG PLAYERGUI
 task.spawn(function()
     while true do
-        task.wait(0.1) -- Quét cực nhanh 0.1 giây một lần để bắt ngay khi game vừa tạo lại nút
+        task.wait(0.05) -- Quét liên tục mỗi 0.05 giây
         pcall(function()
             for _, gui in pairs(LP.PlayerGui:GetChildren()) do
                 if gui ~= Gui and gui:IsA("ScreenGui") then
@@ -156,11 +157,9 @@ task.spawn(function()
                         if desc:IsA("GuiObject") then
                             local text = (desc:IsA("TextButton") and desc.Text or ""):lower()
                             local name = desc.Name:lower()
-                            -- Khóa mọi nút liên quan đến attack/m1/micro h.i.d ngay lập tức
-                            if text:find("attack") or text:find("m1") or name:find("attack") or name:find("m1") or name:find("micro") or name:find("touchgui") then
-                                desc.Visible = false
-                                desc.Active = false
-                                desc.Size = UDim2.new(0, 0, 0, 0) -- Thu nhỏ kích thước về 0 để không cản trở cảm ứng xoay màn hình
+                            -- Nếu game dám đẻ ra nút M1 hoặc nút Attack rác, lập tức xóa sổ nó khỏi game
+                            if text:find("attack") or text:find("m1") or name:find("attack") or name:find("m1") or name:find("micro") then
+                                desc:Destroy()
                             end
                         end
                     end
@@ -170,7 +169,7 @@ task.spawn(function()
     end
 end)
 
--- VÒNG LẶP ĐIỀU KHIỂN NHÂN VẬT
+-- VÒNG LẶP DI CHUYỂN NHÂN VẬT
 RunService.RenderStepped:Connect(function()
     local cam = workspace.CurrentCamera
     local char = LP.Character
@@ -184,4 +183,3 @@ RunService.RenderStepped:Connect(function()
         char.Humanoid:Move(finalDir, false)
     end
 end)
- 
