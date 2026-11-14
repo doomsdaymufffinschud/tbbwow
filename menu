@@ -1,13 +1,25 @@
- -- MOBILE COMBAT V51 - THE BATTLE BRICKS (BLOCK NATIVE TOUCH & FULL PC MODE)
+ -- MOBILE COMBAT V51 - THE BATTLE BRICKS (FIX CONTEXT ACTION & FIXED FIRE)
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local VIM = game:GetService("VirtualInputManager")
 local RunService = game:GetService("RunService")
+local ContextActionService = game:GetService("ContextActionService")
 local LP = Players.LocalPlayer
 
 local Offset_X = 30  
 
--- Reset UI script cũ tránh trùng lặp
+-- TỰ ĐỘNG GỠ BỎ CÁC CONTEXT ACTION (NÚT M1 / KỸ NĂNG CẢM ỨNG GÂY LỖI KÉO TÂM)
+task.spawn(function()
+    pcall(function()
+        -- Unbind các action di động phổ biến hay gây kẹt
+        ContextActionService:UnbindAction("M1")
+        ContextActionService:UnbindAction("Micro H.I.D")
+        ContextActionService:UnbindAction("Attack")
+        ContextActionService:UnbindAction("Skill")
+    end)
+end)
+
+-- Reset UI cũ tránh trùng lặp
 local old = LP.PlayerGui:FindFirstChild("CombatV51")
 if old then old:Destroy() end
 
@@ -28,9 +40,7 @@ Instance.new("UICorner", Cross).CornerRadius = UDim.new(1, 0)
 
 local isFiring = false 
 
--- TẠO DANH SÁCH LƯU CÁC NÚT DO SCRIPT TẠO RA ĐỂ CHO PHÉP CHẠM
-local activeButtons = {}
-
+-- HỆ THỐNG NÚT BẤM CHIẾN ĐẤU CỐ ĐỊNH
 local function CreateBtn(name, txt, pos, sz, color, action)
     local b = Instance.new("TextButton", Gui)
     b.Name = name; b.Text = txt; b.Position = pos; b.Size = sz
@@ -39,19 +49,20 @@ local function CreateBtn(name, txt, pos, sz, color, action)
     b.Font = Enum.Font.SourceSansBold; b.TextWrapped = true
     Instance.new("UICorner", b).CornerRadius = UDim.new(1, 0)
     
-    table.insert(activeButtons, b)
-    
     b.InputBegan:Connect(function(i)
         if i.UserInputType == Enum.UserInputType.Touch or i.UserInputType == Enum.UserInputType.MouseButton1 then
             b.BackgroundTransparency = 0.1
             if action == "FIRE" then 
                 isFiring = true
                 task.spawn(function()
+                    -- BẮN CỐ ĐỊNH: Chỉ bắn tại chính xác tâm màn hình, KHÔNG ĐỂ ĐẠN BAY THEO TAY XOAY
                     while isFiring do
                         local cam = workspace.CurrentCamera
                         local centerX = cam.ViewportSize.X / 2 + Offset_X
                         local centerY = cam.ViewportSize.Y / 2
                         VIM:SendMouseButtonEvent(centerX, centerY, 0, true, game, 1)
+                        task.wait(0.05)
+                        VIM:SendMouseButtonEvent(centerX, centerY, 0, false, game, 1)
                         task.wait(0.05)
                     end
                 end)
@@ -68,10 +79,6 @@ local function CreateBtn(name, txt, pos, sz, color, action)
             b.BackgroundTransparency = 0.4
             if action == "FIRE" then 
                 isFiring = false
-                local cam = workspace.CurrentCamera
-                local centerX = cam.ViewportSize.X / 2 + Offset_X
-                local centerY = cam.ViewportSize.Y / 2
-                VIM:SendMouseButtonEvent(centerX, centerY, 0, false, game, 1)
             elseif action == "JUMP" then
                 VIM:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
             else
@@ -87,7 +94,7 @@ CreateBtn("G", "G", UDim2.new(1, -95, 1, -285), UDim2.new(0, 65, 0, 65), Color3.
 CreateBtn("JUMP", "JUMP", UDim2.new(1, -120, 1, -145), UDim2.new(0, 90, 0, 90), Color3.fromRGB(80, 80, 80), "JUMP")
 CreateBtn("FIRE", "FIRE", UDim2.new(1, -210, 1, -210), UDim2.new(0, 80, 0, 80), Color3.new(0.8, 0, 0), "FIRE")
 
--- JOYSTICK ẢO MƯỢT MÀ
+-- JOYSTICK DI CHUYỂN BÊN TRÁI
 local JoystickFrame = Instance.new("Frame", Gui)
 JoystickFrame.Name = "StableMobileControls"
 JoystickFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
@@ -97,8 +104,6 @@ JoystickFrame.Size = UDim2.new(0, 150, 0, 150)
 JoystickFrame.ZIndex = 500
 JoystickFrame.Active = true
 Instance.new("UICorner", JoystickFrame).CornerRadius = UDim.new(1, 0)
-
-table.insert(activeButtons, JoystickFrame)
 
 local Stick = Instance.new("Frame", JoystickFrame)
 Stick.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
@@ -135,25 +140,28 @@ end)
 UIS.InputEnded:Connect(function(input)
     if input == activeTouch then
         activeTouch = nil
-    	Stick.Position = UDim2.new(0.25, 0, 0.25, 0)
+        Stick.Position = UDim2.new(0.25, 0, 0.25, 0)
         moveVector = Vector3.new(0, 0, 0)
     end
 end)
 
--- HỆ THỐNG ẨN VÀ CHẶN GIAO DIỆN CẢM ỨNG GỐC CỦA GAME (M1 ATTACK & UI RÁC)
+-- VÒNG LẶP LIÊN TỤC QUÉT VÀ TIÊU DIỆT CÁC THANH GIAO DIỆN M1 / KỸ NĂNG GÂY LỖI
 task.spawn(function()
     while true do
-        task.wait(0.5)
+        task.wait(0.3)
         pcall(function()
             for _, gui in pairs(LP.PlayerGui:GetChildren()) do
                 if gui ~= Gui and gui:IsA("ScreenGui") then
                     for _, desc in pairs(gui:GetDescendants()) do
-                        -- Ẩn các nút tấn công hoặc khung cảm ứng gốc của TBB (như nút M1 Attack)
-                        if desc:IsA("TextButton") or desc:IsA("ImageButton") then
+                        if desc:IsA("TextLabel") or desc:IsA("TextButton") or desc:IsA("ImageButton") then
                             local text = (desc.Text or ""):lower()
                             local name = desc.Name:lower()
-                            if text:find("m1") or text:find("attack") or name:find("m1") or name:find("attack") or name:find("touch") or name:find("mobile") then
+                            -- Nếu phát hiện khung hiển thị M1 hoặc các nút kỹ năng cảm ứng rác của game, ẩn và vô hiệu hóa nó ngay lập tức
+                            if text:find("m1") or name:find("m1") or name:find("contextaction") then
                                 desc.Visible = false
+                                if desc:IsA("GuiButton") then
+                                    desc.Active = false
+                                end
                             end
                         end
                     end
@@ -163,7 +171,7 @@ task.spawn(function()
     end
 end)
 
--- VÒNG LẶP ĐIỀU KHIỂN NHÂN VẬT
+-- VÒNG LẶP DI CHUYỂN NHÂN VẬT
 RunService.RenderStepped:Connect(function()
     local cam = workspace.CurrentCamera
     local char = LP.Character
