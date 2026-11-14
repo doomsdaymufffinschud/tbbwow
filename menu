@@ -1,4 +1,4 @@
- -- MOBILE COMBAT V51 - THE BATTLE BRICKS (FIX CONTEXT ACTION & FIXED FIRE)
+ -- MOBILE COMBAT V51 - THE BATTLE BRICKS (FIX FIRE BUTTON & NATIVE ATTACK HIDE)
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local VIM = game:GetService("VirtualInputManager")
@@ -8,10 +8,9 @@ local LP = Players.LocalPlayer
 
 local Offset_X = 30  
 
--- TỰ ĐỘNG GỠ BỎ CÁC CONTEXT ACTION (NÚT M1 / KỸ NĂNG CẢM ỨNG GÂY LỖI KÉO TÂM)
+-- Gỡ bỏ các action mặc định gây kẹt nút của game
 task.spawn(function()
     pcall(function()
-        -- Unbind các action di động phổ biến hay gây kẹt
         ContextActionService:UnbindAction("M1")
         ContextActionService:UnbindAction("Micro H.I.D")
         ContextActionService:UnbindAction("Attack")
@@ -40,7 +39,7 @@ Instance.new("UICorner", Cross).CornerRadius = UDim.new(1, 0)
 
 local isFiring = false 
 
--- HỆ THỐNG NÚT BẤM CHIẾN ĐẤU CỐ ĐỊNH
+-- HỆ THỐNG NÚT BẤM CHIẾN ĐẤU (FIX NÚT FIRE NHẬN DIỆN GIỮ CHUỘT THẬT)
 local function CreateBtn(name, txt, pos, sz, color, action)
     local b = Instance.new("TextButton", Gui)
     b.Name = name; b.Text = txt; b.Position = pos; b.Size = sz
@@ -55,16 +54,19 @@ local function CreateBtn(name, txt, pos, sz, color, action)
             if action == "FIRE" then 
                 isFiring = true
                 task.spawn(function()
-                    -- BẮN CỐ ĐỊNH: Chỉ bắn tại chính xác tâm màn hình, KHÔNG ĐỂ ĐẠN BAY THEO TAY XOAY
+                    -- Gửi tín hiệu nhấn giữ chuột trái tại tâm màn hình để kích hoạt vũ khí bắn liên tục
+                    local cam = workspace.CurrentCamera
+                    local centerX = cam.ViewportSize.X / 2 + Offset_X
+                    local centerY = cam.ViewportSize.Y / 2
+                    
+                    VIM:SendMouseButtonEvent(centerX, centerY, 0, true, game, 1)
+                    
                     while isFiring do
-                        local cam = workspace.CurrentCamera
-                        local centerX = cam.ViewportSize.X / 2 + Offset_X
-                        local centerY = cam.ViewportSize.Y / 2
-                        VIM:SendMouseButtonEvent(centerX, centerY, 0, true, game, 1)
-                        task.wait(0.05)
-                        VIM:SendMouseButtonEvent(centerX, centerY, 0, false, game, 1)
-                        task.wait(0.05)
+                        task.wait(0.1)
+                        -- Duy trì trạng thái bấm tại tâm, cố định hướng không bị lệch theo tay xoay
                     end
+                    
+                    VIM:SendMouseButtonEvent(centerX, centerY, 0, false, game, 1)
                 end)
             elseif action == "JUMP" then
                 VIM:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
@@ -145,23 +147,20 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
--- VÒNG LẶP LIÊN TỤC QUÉT VÀ TIÊU DIỆT CÁC THANH GIAO DIỆN M1 / KỸ NĂNG GÂY LỖI
+-- ẨN VÀ VÔ HIỆU HÓA HOÀN TOÀN CÁC NÚT TẤN CÔNG GỐC CỦA GAME
 task.spawn(function()
     while true do
-        task.wait(0.3)
+        task.wait(0.2)
         pcall(function()
             for _, gui in pairs(LP.PlayerGui:GetChildren()) do
                 if gui ~= Gui and gui:IsA("ScreenGui") then
                     for _, desc in pairs(gui:GetDescendants()) do
-                        if desc:IsA("TextLabel") or desc:IsA("TextButton") or desc:IsA("ImageButton") then
-                            local text = (desc.Text or ""):lower()
+                        if desc:IsA("GuiObject") then
+                            local text = (desc:IsA("TextButton") and desc.Text or ""):lower()
                             local name = desc.Name:lower()
-                            -- Nếu phát hiện khung hiển thị M1 hoặc các nút kỹ năng cảm ứng rác của game, ẩn và vô hiệu hóa nó ngay lập tức
-                            if text:find("m1") or name:find("m1") or name:find("contextaction") then
+                            if text:find("attack") or text:find("m1") or name:find("attack") or name:find("m1") or name:find("micro") or (desc.AbsoluteSize.X > 80 and desc.AbsoluteSize.Y > 80 and name:find("button")) then
                                 desc.Visible = false
-                                if desc:IsA("GuiButton") then
-                                    desc.Active = false
-                                end
+                                desc.Active = false
                             end
                         end
                     end
