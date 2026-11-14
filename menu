@@ -1,21 +1,11 @@
- -- MOBILE COMBAT V51 - THE BATTLE BRICKS (FINAL KILLER FIX)
+ -- MOBILE COMBAT V51 - THE BATTLE BRICKS (STABLE & SAFE MODE)
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
+local VIM = game:GetService("VirtualInputManager")
 local RunService = game:GetService("RunService")
-local ContextActionService = game:GetService("ContextActionService")
 local LP = Players.LocalPlayer
 
 local Offset_X = 30  
-
--- Gỡ bỏ hoàn toàn các action di động gốc
-task.spawn(function()
-    pcall(function()
-        ContextActionService:UnbindAction("M1")
-        ContextActionService:UnbindAction("Micro H.I.D")
-        ContextActionService:UnbindAction("Attack")
-        ContextActionService:UnbindAction("Skill")
-    end)
-end)
 
 -- Reset UI cũ tránh trùng lặp
 local old = LP.PlayerGui:FindFirstChild("CombatV51")
@@ -38,7 +28,7 @@ Instance.new("UICorner", Cross).CornerRadius = UDim.new(1, 0)
 
 local isFiring = false 
 
--- HỆ THỐNG NÚT BẤM (DÙNG HOẠT ĐỘNG CHẠM THỰC TẾ CHO NÚT FIRE)
+-- HỆ THỐNG NÚT BẤM CHIẾN ĐẤU CỐ ĐỊNH (AN TOÀN CHO MỌI EXECUTOR)
 local function CreateBtn(name, txt, pos, sz, color, action)
     local b = Instance.new("TextButton", Gui)
     b.Name = name; b.Text = txt; b.Position = pos; b.Size = sz
@@ -53,24 +43,24 @@ local function CreateBtn(name, txt, pos, sz, color, action)
             if action == "FIRE" then 
                 isFiring = true
                 task.spawn(function()
-                    -- Giả lập chạm trực tiếp vào màn hình tại tâm đúng cơ chế của game
                     while isFiring do
                         local cam = workspace.CurrentCamera
                         local centerX = cam.ViewportSize.X / 2 + Offset_X
                         local centerY = cam.ViewportSize.Y / 2
-                        
-                        -- Gửi sự kiện click bằng chuột ảo trực tiếp vào CoreGui/UserInputService
-                        local vim = game:GetService("VirtualInputManager")
-                        vim:SendMouseButtonEvent(centerX, centerY, 0, true, game, 1)
-                        task.wait(0.04)
-                        vim:SendMouseButtonEvent(centerX, centerY, 0, false, game, 1)
-                        task.wait(0.04)
+                        pcall(function()
+                            VIM:SendMouseButtonEvent(centerX, centerY, 0, true, game, 1)
+                        end)
+                        task.wait(0.05)
+                        pcall(function()
+                            VIM:SendMouseButtonEvent(centerX, centerY, 0, false, game, 1)
+                        end)
+                        task.wait(0.05)
                     end
                 end)
             elseif action == "JUMP" then
-                UIS:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+                pcall(function() VIM:SendKeyEvent(true, Enum.KeyCode.Space, false, game) end)
             else
-                UIS:SendKeyEvent(true, action, false, game)
+                pcall(function() VIM:SendKeyEvent(true, action, false, game) end)
             end
         end
     end)
@@ -81,9 +71,9 @@ local function CreateBtn(name, txt, pos, sz, color, action)
             if action == "FIRE" then 
                 isFiring = false
             elseif action == "JUMP" then
-                UIS:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
+                pcall(function() VIM:SendKeyEvent(false, Enum.KeyCode.Space, false, game) end)
             else
-                UIS:SendKeyEvent(false, action, false, game)
+                pcall(function() VIM:SendKeyEvent(false, action, false, game) end)
             end
         end
     end)
@@ -146,30 +136,7 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
--- TIÊU DIỆT HOÀN TOÀN CÁC NÚT M1/ATTACK NGAY KHI CHÚNG XUẤT HIỆN TRONG PLAYERGUI
-task.spawn(function()
-    while true do
-        task.wait(0.05) -- Quét liên tục mỗi 0.05 giây
-        pcall(function()
-            for _, gui in pairs(LP.PlayerGui:GetChildren()) do
-                if gui ~= Gui and gui:IsA("ScreenGui") then
-                    for _, desc in pairs(gui:GetDescendants()) do
-                        if desc:IsA("GuiObject") then
-                            local text = (desc:IsA("TextButton") and desc.Text or ""):lower()
-                            local name = desc.Name:lower()
-                            -- Nếu game dám đẻ ra nút M1 hoặc nút Attack rác, lập tức xóa sổ nó khỏi game
-                            if text:find("attack") or text:find("m1") or name:find("attack") or name:find("m1") or name:find("micro") then
-                                desc:Destroy()
-                            end
-                        end
-                    end
-                end
-            end
-        end)
-    end
-end)
-
--- VÒNG LẶP DI CHUYỂN NHÂN VẬT
+-- VÒNG LẶP ĐIỀU KHIỂN NHÂN VẬT MƯỢT MÀ
 RunService.RenderStepped:Connect(function()
     local cam = workspace.CurrentCamera
     local char = LP.Character
@@ -183,3 +150,5 @@ RunService.RenderStepped:Connect(function()
         char.Humanoid:Move(finalDir, false)
     end
 end)
+
+print("Combat V51 Loaded Successfully!")
