@@ -1,4 +1,4 @@
- -- MOBILE COMBAT V51 - THE BATTLE BRICKS (OPTIMIZED & BYPASS MOBILE TOUCH)
+ -- MOBILE COMBAT V51 - THE BATTLE BRICKS (BLOCK NATIVE TOUCH & FULL PC MODE)
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local VIM = game:GetService("VirtualInputManager")
@@ -7,23 +7,6 @@ local LP = Players.LocalPlayer
 
 local Offset_X = 30  
 
--- TỰ ĐỘNG XÓA BỎ GIAO DIỆN CẢM ỨNG GỐC CỦA MOBILE (TRÁNH XOAY MÀN HÌNH BỊ TÍNH LÀ CHẠM DÙNG CHIÊU)
-task.spawn(function()
-    local playerGui = LP:WaitForChild("PlayerGui")
-    -- Chờ và xóa TouchGui (Giao diện Joystick và nút nhảy mặc định của Roblox trên điện thoại)
-    local touchGui = playerGui:WaitForChild("TouchGui", 5)
-    if touchGui then
-        touchGui:Destroy()
-    end
-    -- Lắng nghe nếu game tự tạo lại thì xóa tiếp
-    playerGui.ChildAdded:Connect(function(child)
-        if child.Name == "TouchGui" then
-            task.wait()
-            child:Destroy()
-        end
-    end)
-end)
-
 -- Reset UI script cũ tránh trùng lặp
 local old = LP.PlayerGui:FindFirstChild("CombatV51")
 if old then old:Destroy() end
@@ -31,6 +14,8 @@ if old then old:Destroy() end
 local Gui = Instance.new("ScreenGui", LP.PlayerGui)
 Gui.Name = "CombatV51"
 Gui.ResetOnSpawn = false
+Gui.IgnoreGuiInset = true
+Gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 -- TÂM ĐỎ ĐỊNH VỊ
 local Cross = Instance.new("Frame", Gui)
@@ -43,7 +28,9 @@ Instance.new("UICorner", Cross).CornerRadius = UDim.new(1, 0)
 
 local isFiring = false 
 
--- HỆ THỐNG NÚT BẤM CHIẾN ĐẤU GỐC
+-- TẠO DANH SÁCH LƯU CÁC NÚT DO SCRIPT TẠO RA ĐỂ CHO PHÉP CHẠM
+local activeButtons = {}
+
 local function CreateBtn(name, txt, pos, sz, color, action)
     local b = Instance.new("TextButton", Gui)
     b.Name = name; b.Text = txt; b.Position = pos; b.Size = sz
@@ -51,6 +38,8 @@ local function CreateBtn(name, txt, pos, sz, color, action)
     b.TextColor3 = Color3.new(1,1,1); b.TextSize = 22; b.ZIndex = 500
     b.Font = Enum.Font.SourceSansBold; b.TextWrapped = true
     Instance.new("UICorner", b).CornerRadius = UDim.new(1, 0)
+    
+    table.insert(activeButtons, b)
     
     b.InputBegan:Connect(function(i)
         if i.UserInputType == Enum.UserInputType.Touch or i.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -109,6 +98,8 @@ JoystickFrame.ZIndex = 500
 JoystickFrame.Active = true
 Instance.new("UICorner", JoystickFrame).CornerRadius = UDim.new(1, 0)
 
+table.insert(activeButtons, JoystickFrame)
+
 local Stick = Instance.new("Frame", JoystickFrame)
 Stick.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 Stick.Position = UDim2.new(0.25, 0, 0.25, 0)
@@ -144,8 +135,31 @@ end)
 UIS.InputEnded:Connect(function(input)
     if input == activeTouch then
         activeTouch = nil
-        Stick.Position = UDim2.new(0.25, 0, 0.25, 0)
+    	Stick.Position = UDim2.new(0.25, 0, 0.25, 0)
         moveVector = Vector3.new(0, 0, 0)
+    end
+end)
+
+-- HỆ THỐNG ẨN VÀ CHẶN GIAO DIỆN CẢM ỨNG GỐC CỦA GAME (M1 ATTACK & UI RÁC)
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+        pcall(function()
+            for _, gui in pairs(LP.PlayerGui:GetChildren()) do
+                if gui ~= Gui and gui:IsA("ScreenGui") then
+                    for _, desc in pairs(gui:GetDescendants()) do
+                        -- Ẩn các nút tấn công hoặc khung cảm ứng gốc của TBB (như nút M1 Attack)
+                        if desc:IsA("TextButton") or desc:IsA("ImageButton") then
+                            local text = (desc.Text or ""):lower()
+                            local name = desc.Name:lower()
+                            if text:find("m1") or text:find("attack") or name:find("m1") or name:find("attack") or name:find("touch") or name:find("mobile") then
+                                desc.Visible = false
+                            end
+                        end
+                    end
+                end
+            end
+        end)
     end
 end)
 
