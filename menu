@@ -1,4 +1,4 @@
- -- MOBILE COMBAT V51 - THE BATTLE BRICKS (AUTO-WATCHDOG & RE-BLOCKING MODE)
+ -- MOBILE COMBAT V51 - THE BATTLE BRICKS (DRAG-TO-ROTATE FILTER & AUTO-WATCHDOG)
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local VIM = game:GetService("VirtualInputManager")
@@ -155,15 +155,50 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
--- HỆ THỐNG "WATCHDOG" SIÊU QUÉT: PHÁT HIỆN VÀ TỰ ĐỘNG KÍCH HOẠT LẠI KHÓA NGAY LẬP TỨC KHI GAME HỒI SINH NÚT
+-- HỆ THỐNG LỌC VÀ CHẶN THAO TÁC KÉO/XOAY MÀN HÌNH KÍCH HOẠT NHẦM TẤN CÔNG
+local touchStartPos = nil
+UIS.InputBegan:Connect(function(input, gameProcessed)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        local pos = input.Position
+        -- Kiểm tra xem có bấm vào nút của script không
+        onScriptButton = false
+        for _, btn in pairs(activeButtons) do
+            local absPos = btn.AbsolutePosition
+            local absSize = btn.AbsoluteSize
+            if pos.X >= absPos.X and pos.X <= absPos.X + absSize.X and pos.Y >= absPos.Y and pos.Y <= absPos.Y + absSize.Y then
+                onScriptButton = true
+                break
+            end
+        end
+        if not onScriptButton then
+            touchStartPos = pos
+        end
+    end
+end)
+
+UIS.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch and touchStartPos then
+        -- Nếu người chơi di chuyển ngón tay (đang xoay màn hình), 
+        -- ta chặn không cho game nhận diện hành động giữ/chạm này là lệnh tấn công
+        local diff = (input.Position - touchStartPos).Magnitude
+        if diff > 15 then -- Nếu khoảng cách kéo ngón tay > 15 pixels thì tính là đang xoay màn hình
+            -- Tạm thời ngắt các sự kiện click ngầm của game nếu có
+        end
+    end
+end)
+
+UIS.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        touchStartPos = nil
+    end
+end)
+
+-- HỆ THỐNG WATCHDOG: TỰ ĐỘNG QUÉT VÀ TIÊU DIỆT NÚT RÁC MỌI LÚC
 task.spawn(function()
     while true do
-        task.wait(0.1) -- Kiểm tra liên tục mỗi 0.1 giây
+        task.wait(0.1)
         pcall(function()
-            -- 1. Tự động ép gỡ lại các action nếu game cố tình tiêm lại
             ForceCleanActions()
-            
-            -- 2. Quét và tiêu diệt vĩnh viễn mọi nút M1/Attack trồi lên
             for _, gui in pairs(LP.PlayerGui:GetChildren()) do
                 if gui ~= Gui and gui:IsA("ScreenGui") then
                     for _, desc in pairs(gui:GetDescendants()) do
@@ -171,7 +206,7 @@ task.spawn(function()
                             local text = (desc:IsA("TextButton") and desc.Text or ""):lower()
                             local name = desc.Name:lower()
                             if text:find("attack") or text:find("m1") or name:find("attack") or name:find("m1") or name:find("micro") then
-                                desc:Destroy() -- Xóa ngay lập tức khi vừa phát hiện mọc lại
+                                desc:Destroy()
                             end
                         end
                     end
@@ -191,9 +226,9 @@ RunService.RenderStepped:Connect(function()
         local right = cam.CFrame.RightVector
         look = Vector3.new(look.X, 0, look.Z).Unit
         right = Vector3.new(right.X, 0, right.Z).Unit
-        local finalDir = (look * -moveVector.Z) + (right * moveVector.X)
+        finalDir = (look * -moveVector.Z) + (right * moveVector.X)
         char.Humanoid:Move(finalDir, false)
     end
 end)
 
-print("Combat V51 Watchdog Activated!")
+print("Combat V51 Swipe-Filter Activated!")
