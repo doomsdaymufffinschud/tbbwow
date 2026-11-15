@@ -1,4 +1,4 @@
- -- MOBILE COMBAT V51 - THE BATTLE BRICKS (DRAG-TO-ROTATE FILTER & AUTO-WATCHDOG)
+ -- MOBILE COMBAT V51 - THE BATTLE BRICKS (AUTO-RESET ON RESPAWN)
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local VIM = game:GetService("VirtualInputManager")
@@ -8,8 +8,8 @@ local LP = Players.LocalPlayer
 
 local Offset_X = 30  
 
--- HÀM DỌN DẸP VÀ CHẶN TRIỆT ĐỂ CÁC ACTION GÂY LỖI
-local function ForceCleanActions()
+-- HÀM DỌN DẸP SẠCH SẼ CÁC ACTION GÂY LỖI
+local function CleanGameControls()
     pcall(function()
         ContextActionService:UnbindAction("M1")
         ContextActionService:UnbindAction("Micro H.I.D")
@@ -19,7 +19,7 @@ local function ForceCleanActions()
     end)
 end
 
-ForceCleanActions()
+CleanGameControls()
 
 -- Reset UI cũ tránh trùng lặp
 local old = LP.PlayerGui:FindFirstChild("CombatV51")
@@ -31,7 +31,7 @@ Gui.ResetOnSpawn = false
 Gui.IgnoreGuiInset = true
 Gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
--- TÂM ĐỎ ĐỊNH VỊ
+-- TÂM ĐỎ ĐỊNH VỊ CHÍNH XÁC
 local Cross = Instance.new("Frame", Gui)
 Cross.Size = UDim2.new(0, 6, 0, 6)
 Cross.Position = UDim2.new(0.5, -3 + Offset_X, 0.5, -3)
@@ -41,9 +41,8 @@ Cross.ZIndex = 1000
 Instance.new("UICorner", Cross).CornerRadius = UDim.new(1, 0)
 
 local isFiring = false 
-local activeButtons = {}
 
--- HỆ THỐNG NÚT BẤM CHIẾN ĐẤU CỐ ĐỊNH
+-- HỆ THỐNG NÚT BẤM CHIẾN ĐẤU PHẢN HỒI NHANH
 local function CreateBtn(name, txt, pos, sz, color, action)
     local b = Instance.new("TextButton", Gui)
     b.Name = name; b.Text = txt; b.Position = pos; b.Size = sz
@@ -51,8 +50,6 @@ local function CreateBtn(name, txt, pos, sz, color, action)
     b.TextColor3 = Color3.new(1,1,1); b.TextSize = 22; b.ZIndex = 500
     b.Font = Enum.Font.SourceSansBold; b.TextWrapped = true
     Instance.new("UICorner", b).CornerRadius = UDim.new(1, 0)
-    
-    table.insert(activeButtons, b)
     
     b.InputBegan:Connect(function(i)
         if i.UserInputType == Enum.UserInputType.Touch or i.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -67,11 +64,11 @@ local function CreateBtn(name, txt, pos, sz, color, action)
                         pcall(function()
                             VIM:SendMouseButtonEvent(centerX, centerY, 0, true, game, 1)
                         end)
-                        task.wait(0.05)
+                        task.wait(0.03)
                         pcall(function()
                             VIM:SendMouseButtonEvent(centerX, centerY, 0, false, game, 1)
                         end)
-                        task.wait(0.05)
+                        task.wait(0.03)
                     end
                 end)
             elseif action == "JUMP" then
@@ -102,7 +99,7 @@ CreateBtn("G", "G", UDim2.new(1, -95, 1, -285), UDim2.new(0, 65, 0, 65), Color3.
 CreateBtn("JUMP", "JUMP", UDim2.new(1, -120, 1, -145), UDim2.new(0, 90, 0, 90), Color3.fromRGB(80, 80, 80), "JUMP")
 CreateBtn("FIRE", "FIRE", UDim2.new(1, -210, 1, -210), UDim2.new(0, 80, 0, 80), Color3.new(0.8, 0, 0), "FIRE")
 
--- JOYSTICK DI CHUYỂN BÊN TRÁI
+-- JOYSTICK DI CHUYỂN BÊN TRÁI MƯỢT MÀ
 local JoystickFrame = Instance.new("Frame", Gui)
 JoystickFrame.Name = "StableMobileControls"
 JoystickFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
@@ -112,8 +109,6 @@ JoystickFrame.Size = UDim2.new(0, 150, 0, 150)
 JoystickFrame.ZIndex = 500
 JoystickFrame.Active = true
 Instance.new("UICorner", JoystickFrame).CornerRadius = UDim.new(1, 0)
-
-table.insert(activeButtons, JoystickFrame)
 
 local Stick = Instance.new("Frame", JoystickFrame)
 Stick.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
@@ -155,68 +150,13 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
--- HỆ THỐNG LỌC VÀ CHẶN THAO TÁC KÉO/XOAY MÀN HÌNH KÍCH HOẠT NHẦM TẤN CÔNG
-local touchStartPos = nil
-UIS.InputBegan:Connect(function(input, gameProcessed)
-    if input.UserInputType == Enum.UserInputType.Touch then
-        local pos = input.Position
-        -- Kiểm tra xem có bấm vào nút của script không
-        onScriptButton = false
-        for _, btn in pairs(activeButtons) do
-            local absPos = btn.AbsolutePosition
-            local absSize = btn.AbsoluteSize
-            if pos.X >= absPos.X and pos.X <= absPos.X + absSize.X and pos.Y >= absPos.Y and pos.Y <= absPos.Y + absSize.Y then
-                onScriptButton = true
-                break
-            end
-        end
-        if not onScriptButton then
-            touchStartPos = pos
-        end
-    end
+-- TỰ ĐỘNG LÀM SẠCH VÀ RESET LẠI KHI NHÂN VẬT HỒI SINH (CHẾT VÀ SỐNG LẠI)
+LP.CharacterAdded:Connect(function(char)
+    task.wait(0.5)
+    CleanGameControls()
 end)
 
-UIS.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch and touchStartPos then
-        -- Nếu người chơi di chuyển ngón tay (đang xoay màn hình), 
-        -- ta chặn không cho game nhận diện hành động giữ/chạm này là lệnh tấn công
-        local diff = (input.Position - touchStartPos).Magnitude
-        if diff > 15 then -- Nếu khoảng cách kéo ngón tay > 15 pixels thì tính là đang xoay màn hình
-            -- Tạm thời ngắt các sự kiện click ngầm của game nếu có
-        end
-    end
-end)
-
-UIS.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
-        touchStartPos = nil
-    end
-end)
-
--- HỆ THỐNG WATCHDOG: TỰ ĐỘNG QUÉT VÀ TIÊU DIỆT NÚT RÁC MỌI LÚC
-task.spawn(function()
-    while true do
-        task.wait(0.1)
-        pcall(function()
-            ForceCleanActions()
-            for _, gui in pairs(LP.PlayerGui:GetChildren()) do
-                if gui ~= Gui and gui:IsA("ScreenGui") then
-                    for _, desc in pairs(gui:GetDescendants()) do
-                        if desc:IsA("GuiObject") then
-                            local text = (desc:IsA("TextButton") and desc.Text or ""):lower()
-                            local name = desc.Name:lower()
-                            if text:find("attack") or text:find("m1") or name:find("attack") or name:find("m1") or name:find("micro") then
-                                desc:Destroy()
-                            end
-                        end
-                    end
-                end
-            end
-        end)
-    end
-end)
-
--- VÒNG LẶP ĐIỀU KHIỂN NHÂN VẬT
+-- VÒNG LẶP DI CHUYỂN NHÂN VẬT KHÔNG ĐỘ TRỄ
 RunService.RenderStepped:Connect(function()
     local cam = workspace.CurrentCamera
     local char = LP.Character
@@ -226,9 +166,9 @@ RunService.RenderStepped:Connect(function()
         local right = cam.CFrame.RightVector
         look = Vector3.new(look.X, 0, look.Z).Unit
         right = Vector3.new(right.X, 0, right.Z).Unit
-        finalDir = (look * -moveVector.Z) + (right * moveVector.X)
+        local finalDir = (look * -moveVector.Z) + (right * moveVector.X)
         char.Humanoid:Move(finalDir, false)
     end
 end)
 
-print("Combat V51 Swipe-Filter Activated!")
+print("Combat V51 Respawn-Safe Activated!")
